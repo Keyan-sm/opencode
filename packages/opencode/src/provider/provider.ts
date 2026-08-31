@@ -1752,6 +1752,27 @@ const layer = Layer.effect(
           options["includeUsage"] = true
         }
 
+        // CaseCanvas fork: some OpenAI-compatible deployments (Azure AI Foundry reasoning models)
+        // reject `max_tokens` and require `max_completion_tokens`. Opt in per provider with
+        // `options.maxCompletionTokens: true` — the rewrite composes with any existing fetch.
+        if (model.api.npm.includes("@ai-sdk/openai-compatible") && options["maxCompletionTokens"] === true) {
+          delete options["maxCompletionTokens"]
+          const innerFetch = (options.fetch as typeof fetch | undefined) ?? fetch
+          options.fetch = (async (url: RequestInfo | URL, init?: RequestInit) => {
+            if (init?.body && typeof init.body === "string") {
+              try {
+                const body = JSON.parse(init.body)
+                if ("max_tokens" in body) {
+                  body.max_completion_tokens = body.max_tokens
+                  delete body.max_tokens
+                  init = { ...init, body: JSON.stringify(body) }
+                }
+              } catch {}
+            }
+            return innerFetch(url, init)
+          }) as typeof fetch
+        }
+
         const baseURL = iife(() => {
           let url =
             typeof options["baseURL"] === "string" && options["baseURL"] !== "" ? options["baseURL"] : model.api.url
