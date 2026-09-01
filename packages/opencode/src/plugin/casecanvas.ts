@@ -6,6 +6,13 @@ const READ_DOCUMENT = "casecanvas_read_document"
 const INGESTION_STATUS = "casecanvas_ingestion_status"
 const PROPOSE_CASE_PARTY = "casecanvas_propose_case_party"
 const PROPOSE_SCHEDULE_UPDATE = "casecanvas_propose_schedule_update"
+export const CASECANVAS_PRODUCT_TOOL_IDS = [
+  SEARCH_DOCUMENTS,
+  READ_DOCUMENT,
+  INGESTION_STATUS,
+  PROPOSE_CASE_PARTY,
+  PROPOSE_SCHEDULE_UPDATE,
+] as const
 const DEFAULT_TIMEOUT_MS = 15_000
 const REPEAT_WINDOW_MS = 30_000
 const MAX_IDENTICAL_CALLS = 3
@@ -14,11 +21,7 @@ const MAX_TOOL_CALLS = 32
 const MAX_RETRIEVED_CHARACTERS = 500_000
 const RUN_BUDGET_TTL_MS = 10 * 60_000
 const ALLOWED_TOOLS = new Set([
-  SEARCH_DOCUMENTS,
-  READ_DOCUMENT,
-  INGESTION_STATUS,
-  PROPOSE_CASE_PARTY,
-  PROPOSE_SCHEDULE_UPDATE,
+  ...CASECANVAS_PRODUCT_TOOL_IDS,
   "todowrite",
 ])
 const SYSTEM_POLICY =

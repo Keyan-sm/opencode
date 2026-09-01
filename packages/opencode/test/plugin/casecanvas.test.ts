@@ -1,6 +1,11 @@
 import { afterEach, describe, expect, test } from "bun:test"
 import type { Hooks, ToolContext, ToolResult } from "@opencode-ai/plugin"
-import { caseCanvasConfiguration, createCaseCanvasHooks, createCaseCanvasPlugin } from "@/plugin/casecanvas"
+import {
+  CASECANVAS_PRODUCT_TOOL_IDS,
+  caseCanvasConfiguration,
+  createCaseCanvasHooks,
+  createCaseCanvasPlugin,
+} from "@/plugin/casecanvas"
 
 const servers: Bun.Server<unknown>[] = []
 
@@ -48,13 +53,15 @@ describe("plugin.casecanvas", () => {
       CASECANVAS_TOOL_ENDPOINT: "https://casecanvas.test/internal/tools",
       CASECANVAS_TOOL_TOKEN: "service-secret",
     })({} as never)
-    expect(Object.keys(configured.tool ?? {}).sort()).toEqual([
+    const registered = Object.keys(configured.tool ?? {}).sort()
+    expect(registered).toEqual([
       "casecanvas_ingestion_status",
       "casecanvas_propose_case_party",
       "casecanvas_propose_schedule_update",
       "casecanvas_read_document",
       "casecanvas_search_documents",
     ])
+    expect(registered).toEqual([...CASECANVAS_PRODUCT_TOOL_IDS].sort())
   })
 
   test("installs a bounded Cassius agent even when local configuration asks for more steps", async () => {

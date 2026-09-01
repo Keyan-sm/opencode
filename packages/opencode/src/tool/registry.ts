@@ -54,14 +54,9 @@ import { ModelV2 } from "@opencode-ai/core/model"
 import { MCP } from "@/mcp"
 import { PermissionV1 } from "@opencode-ai/core/v1/permission"
 import { McpCatalog } from "@/mcp/catalog"
+import { CASECANVAS_PRODUCT_TOOL_IDS } from "@/plugin/casecanvas"
 
-const caseCanvasToolIDs = new Set([
-  "casecanvas_search_documents",
-  "casecanvas_read_document",
-  "casecanvas_ingestion_status",
-  "casecanvas_propose_schedule_update",
-  "todowrite",
-])
+const caseCanvasToolIDs = new Set([...CASECANVAS_PRODUCT_TOOL_IDS, "todowrite"])
 
 export function webSearchEnabled(providerID: ProviderV2.ID, flags = { exa: false, parallel: false }) {
   return (
