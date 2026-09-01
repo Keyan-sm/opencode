@@ -242,6 +242,10 @@ export const StepFinishPart = Schema.Struct({
   type: Schema.Literal("step-finish"),
   reason: Schema.String,
   snapshot: Schema.optional(Schema.String),
+  // Provider-owned, non-secret continuation/response identifiers are retained so an embedding
+  // host can attest which upstream response produced a completed step. Do not place request
+  // headers, credentials, prompts, or response prose in this field.
+  metadata: Schema.optional(Schema.Record(Schema.String, Schema.Unknown)),
   cost: Schema.Finite,
   tokens: Schema.Struct({
     total: Schema.optional(Schema.Finite),

@@ -71,6 +71,7 @@ interface ProcessorContext extends Input {
   blocked: boolean
   needsCompaction: boolean
   currentText: SessionV1.TextPart | undefined
+  lastStepFinish: SessionV1.StepFinishPart | undefined
   reasoningMap: Record<string, SessionV1.ReasoningPart>
 }
 
@@ -110,6 +111,7 @@ const layer = Layer.effect(
         blocked: false,
         needsCompaction: false,
         currentText: undefined,
+        lastStepFinish: undefined,
         reasoningMap: {},
       }
       let aborted = false
@@ -443,10 +445,11 @@ const layer = Layer.effect(
             ctx.assistantMessage.finish = value.reason
             ctx.assistantMessage.cost += usage.cost
             ctx.assistantMessage.tokens = usage.tokens
-            yield* session.updatePart({
+            ctx.lastStepFinish = yield* session.updatePart({
               id: PartID.ascending(),
               reason: value.reason,
               snapshot: completedSnapshot,
+              metadata: value.providerMetadata,
               messageID: ctx.assistantMessage.id,
               sessionID: ctx.assistantMessage.sessionID,
               type: "step-finish",
@@ -532,6 +535,27 @@ const layer = Layer.effect(
             return
 
           case "finish":
+            // AI SDK Responses emits the provider response ID on the outer `finish` event, after
+            // its `finish-step` event. Attach that provider-issued metadata to the completed step
+            // so an embedding host can retain a causal-chain attestation without response content.
+            if (ctx.lastStepFinish && value.providerMetadata) {
+              const metadata = Object.fromEntries(
+                [...new Set([
+                  ...Object.keys(ctx.lastStepFinish.metadata ?? {}),
+                  ...Object.keys(value.providerMetadata),
+                ])].map((provider) => [
+                  provider,
+                  {
+                    ...(ctx.lastStepFinish?.metadata?.[provider] ?? {}),
+                    ...(value.providerMetadata?.[provider] ?? {}),
+                  },
+                ]),
+              )
+              ctx.lastStepFinish = yield* session.updatePart({
+                ...ctx.lastStepFinish,
+                metadata,
+              })
+            }
             return
         }
       })

@@ -17,6 +17,7 @@ import { Script } from "@opencode-ai/script"
 import pkg from "../package.json"
 
 const singleFlag = process.argv.includes("--single")
+const requestedTarget = process.argv.find((argument) => argument.startsWith("--target="))?.slice("--target=".length)
 const baselineFlag = process.argv.includes("--baseline")
 const skipInstall = process.argv.includes("--skip-install")
 const sourcemapsFlag = process.argv.includes("--sourcemaps")
@@ -113,26 +114,35 @@ const allTargets: {
   },
 ]
 
-const targets = singleFlag
+const targets = requestedTarget
   ? allTargets.filter((item) => {
-      if (item.os !== process.platform || item.arch !== process.arch) {
-        return false
-      }
-
-      // When building for the current platform, prefer a single native binary by default.
-      // Baseline binaries require additional Bun artifacts and can be flaky to download.
-      if (item.avx2 === false) {
-        return baselineFlag
-      }
-
-      // also skip abi-specific builds for the same reason
-      if (item.abi !== undefined) {
-        return false
-      }
-
-      return true
+      const os = item.os === "win32" ? "windows" : item.os
+      return `${os}-${item.arch}` === requestedTarget && item.avx2 !== false && item.abi === undefined
     })
-  : allTargets
+  : singleFlag
+    ? allTargets.filter((item) => {
+        if (item.os !== process.platform || item.arch !== process.arch) {
+          return false
+        }
+
+        // When building for the current platform, prefer a single native binary by default.
+        // Baseline binaries require additional Bun artifacts and can be flaky to download.
+        if (item.avx2 === false) {
+          return baselineFlag
+        }
+
+        // also skip abi-specific builds for the same reason
+        if (item.abi !== undefined) {
+          return false
+        }
+
+        return true
+      })
+    : allTargets
+
+if (targets.length === 0) {
+  throw new Error(`Unknown or unsupported build target: ${requestedTarget ?? "current platform"}`)
+}
 
 await $`rm -rf dist`
 

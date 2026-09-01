@@ -3,6 +3,8 @@ import { z } from "zod"
 export type ToolContext = {
   sessionID: string
   messageID: string
+  /** Stable identifier for the current model tool call, when available. */
+  callID?: string
   agent: string
   /**
    * Current project directory for this session.

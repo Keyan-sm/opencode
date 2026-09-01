@@ -12,6 +12,8 @@ import { described } from "./metadata"
 const GlobalHealth = Schema.Struct({
   healthy: Schema.Literal(true),
   version: Schema.String,
+  /** Stable fingerprint consumed by CaseCanvas before it trusts this fork as its harness. */
+  casecanvasFork: Schema.Literal("cassius-v1"),
 })
 
 const SyncEventSchemas = EventManifest.Latest.values()

@@ -1469,6 +1469,7 @@ const layer = Layer.effect(
         model: userModel,
         agent: userAgent,
         parts,
+        system: input.system,
         variant: input.variant,
       })
       yield* events.publish(Command.Event.Executed, {
@@ -1540,6 +1541,7 @@ export const CommandInput = Schema.Struct({
   model: Schema.optional(Schema.String),
   arguments: Schema.String,
   command: Schema.String,
+  system: Schema.optional(Schema.String),
   variant: Schema.optional(Schema.String),
   // Inlined (no identifier annotation) to keep the original SDK output — the
   // PromptInput call site below references FilePartInput by ref via the

@@ -181,6 +181,7 @@ describe("step-finish token propagation via event", () => {
           sessionID: info.id,
           type: "step-finish" as const,
           reason: "stop",
+          metadata: { openai: { responseId: "resp_attested" } },
           cost: 0.005,
           tokens,
         }
@@ -197,6 +198,7 @@ describe("step-finish token propagation via event", () => {
         expect(finish.tokens.cache.read).toBe(100)
         expect(finish.tokens.cache.write).toBe(50)
         expect(finish.cost).toBe(0.005)
+        expect(finish.metadata).toEqual({ openai: { responseId: "resp_attested" } })
         expect(receivedPart).not.toBe(partInput)
 
         yield* session.remove(info.id)

@@ -226,6 +226,26 @@ const fragmentFailureLLM = Layer.succeed(
 const fragmentFailureEnv = LayerNode.compile(root, [...replacements, [LLM.node, fragmentFailureLLM]])
 const itFragmentFailure = testEffect(fragmentFailureEnv)
 
+const finishMetadataLLM = Layer.succeed(
+  LLM.Service,
+  LLM.Service.of({
+    stream: () =>
+      Stream.make(
+        LLMEvent.stepStart({ index: 0 }),
+        LLMEvent.textStart({ id: "text-1" }),
+        LLMEvent.textDelta({ id: "text-1", text: "attested" }),
+        LLMEvent.textEnd({ id: "text-1" }),
+        LLMEvent.stepFinish({ index: 0, reason: "stop" }),
+        LLMEvent.finish({
+          reason: "stop",
+          providerMetadata: { openai: { responseId: "resp_attested", serviceTier: "default" } },
+        }),
+      ),
+  }),
+)
+const finishMetadataEnv = LayerNode.compile(root, [...replacements, [LLM.node, finishMetadataLLM]])
+const itFinishMetadata = testEffect(finishMetadataEnv)
+
 const boot = Effect.fn("test.boot")(function* () {
   const processors = yield* SessionProcessor.Service
   const session = yield* Session.Service
@@ -1165,6 +1185,48 @@ itFragmentFailure.live("session.processor effect tests retain partial legacy par
         expect(seen).toContain(MessageV2.Event.PartUpdated.type)
         expect(seen).toContain(Session.Event.Error.type)
         expect(seen.filter((type) => type.startsWith("session.next."))).toEqual([])
+      }),
+    { config: cfg },
+  ),
+)
+
+itFinishMetadata.live("session.processor retains provider metadata emitted after step finish", () =>
+  provideTmpdirInstance(
+    (dir) =>
+      Effect.gen(function* () {
+        const { processors, session, provider } = yield* boot()
+        const chat = yield* session.create({})
+        const parent = yield* user(chat.id, "provider attestation")
+        const msg = yield* assistant(chat.id, parent.id, path.resolve(dir))
+        const mdl = yield* provider.getModel(ref.providerID, ref.modelID)
+        const handle = yield* processors.create({ assistantMessage: msg, sessionID: chat.id, model: mdl })
+
+        expect(
+          yield* handle.process({
+            user: {
+              id: parent.id,
+              sessionID: chat.id,
+              role: "user",
+              time: parent.time,
+              agent: parent.agent,
+              model: { providerID: ref.providerID, modelID: ref.modelID },
+            } satisfies SessionV1.User,
+            sessionID: chat.id,
+            model: mdl,
+            agent: agent(),
+            system: [],
+            messages: [{ role: "user", content: "provider attestation" }],
+            tools: {},
+          }),
+        ).toBe("continue")
+
+        const parts = yield* MessageV2.parts(msg.id)
+        const finish = parts.find(
+          (part): part is SessionV1.StepFinishPart => part.type === "step-finish",
+        )
+        expect(finish?.metadata).toEqual({
+          openai: { responseId: "resp_attested", serviceTier: "default" },
+        })
       }),
     { config: cfg },
   ),

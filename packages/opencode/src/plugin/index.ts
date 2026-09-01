@@ -33,6 +33,7 @@ import type { WorkspaceAdapter } from "@/control-plane/types"
 import { RuntimeFlags } from "@/effect/runtime-flags"
 import { EventV2Bridge } from "@/event-v2-bridge"
 import { InstallationChannel } from "@opencode-ai/core/installation/version"
+import { CaseCanvasPlugin } from "./casecanvas"
 
 type State = {
   hooks: Hooks[]
@@ -167,7 +168,10 @@ const layer = Layer.effect(
           $: typeof Bun === "undefined" ? undefined : Bun.$,
         }
 
-        for (const plugin of flags.disableDefaultPlugins ? [] : internalPlugins(flags)) {
+        // CaseCanvas is an explicit service integration, not a default convenience plugin.
+        // Its own environment contract keeps it inert when CaseCanvas is not configured.
+        const builtins = [...(flags.disableDefaultPlugins ? [] : internalPlugins(flags)), CaseCanvasPlugin]
+        for (const plugin of builtins) {
           const init = yield* Effect.tryPromise({
             try: () => plugin(input),
             catch: errorMessage,
