@@ -236,6 +236,12 @@ const finishMetadataLLM = Layer.succeed(
         LLMEvent.textStart({ id: "text-1" }),
         LLMEvent.textDelta({ id: "text-1", text: "attested" }),
         LLMEvent.textEnd({ id: "text-1" }),
+        LLMEvent.stepStart({
+          index: 0,
+          providerMetadata: {
+            openai: { responseId: "resp_attested", usage: { input_tokens: 20, output_tokens: 5, total_tokens: 25 } },
+          },
+        }),
         LLMEvent.stepFinish({ index: 0, reason: "stop" }),
         LLMEvent.finish({
           reason: "stop",
@@ -1227,6 +1233,11 @@ itFinishMetadata.live("session.processor retains provider metadata emitted after
 
         const parts = yield* MessageV2.parts(msg.id)
         const finish = parts.find((part): part is SessionV1.StepFinishPart => part.type === "step-finish")
+        const starts = parts.filter((part) => part.type === "step-start")
+        expect(starts).toHaveLength(1)
+        expect(starts[0]?.metadata).toEqual({
+          openai: { responseId: "resp_attested", usage: { input_tokens: 20, output_tokens: 5, total_tokens: 25 } },
+        })
         expect(finish?.metadata).toEqual({
           openai: { responseId: "resp_attested", serviceTier: "default" },
         })

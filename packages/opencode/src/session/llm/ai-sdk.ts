@@ -280,11 +280,42 @@ export function toLLMEvents(
         if (event.rawValue && typeof event.rawValue === "object") {
           const raw = event.rawValue as Record<string, unknown>
           const response = raw.response
-          if (raw.type === "response.created" && response && typeof response === "object") {
-            const id = (response as Record<string, unknown>).id
+          if (
+            ["response.created", "response.completed", "response.incomplete", "response.failed"].includes(
+              String(raw.type),
+            ) &&
+            response &&
+            typeof response === "object"
+          ) {
+            const receipt = response as Record<string, unknown>
+            const id = receipt.id
             if (typeof id === "string" && /^resp_[a-zA-Z0-9._:-]{1,250}$/.test(id)) {
               // Never carry response prose, reasoning, headers, or credentials across this seam.
-              return [LLMEvent.stepStart({ index: state.step, providerMetadata: { openai: { responseId: id } } })]
+              const usage =
+                receipt.usage && typeof receipt.usage === "object" && !Array.isArray(receipt.usage)
+                  ? Object.fromEntries(
+                      Object.entries(receipt.usage).flatMap<[string, number | Record<string, unknown>]>(
+                        ([key, value]) => {
+                          if (typeof value === "number" && Number.isFinite(value)) return [[key, value]]
+                          if (!value || typeof value !== "object" || Array.isArray(value)) return []
+                          const details = Object.fromEntries(
+                            Object.entries(value).filter(
+                              ([, count]) => typeof count === "number" && Number.isFinite(count),
+                            ),
+                          )
+                          return Object.keys(details).length ? [[key, details]] : []
+                        },
+                      ),
+                    )
+                  : undefined
+              return [
+                LLMEvent.stepStart({
+                  index: state.step,
+                  providerMetadata: {
+                    openai: { responseId: id, ...(usage && Object.keys(usage).length ? { usage } : {}) },
+                  },
+                }),
+              ]
             }
           }
         }

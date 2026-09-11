@@ -226,6 +226,24 @@ describe("session.llm.ai-sdk adapter", () => {
         providerMetadata: { openai: { result: true } },
       },
       {
+        type: "raw",
+        rawValue: {
+          type: "response.completed",
+          response: {
+            id: "resp_started",
+            usage: {
+              input_tokens: 10,
+              output_tokens: 5,
+              total_tokens: 15,
+              input_tokens_details: { cached_tokens: 3 },
+              output_tokens_details: { reasoning_tokens: 1 },
+              privateField: "must-not-cross",
+            },
+            output: "must-not-cross",
+          },
+        },
+      },
+      {
         type: "finish-step",
         response: { id: "response-1", timestamp: new Date(0), modelId: "gpt-test" },
         finishReason: "other",
@@ -284,6 +302,22 @@ describe("session.llm.ai-sdk adapter", () => {
         result: { type: "json", value: { title: "Lookup", output: "sunny", metadata: { ok: true } } },
         providerExecuted: true,
         providerMetadata: { openai: { result: true } },
+      },
+      {
+        type: "step-start",
+        index: 0,
+        providerMetadata: {
+          openai: {
+            responseId: "resp_started",
+            usage: {
+              input_tokens: 10,
+              output_tokens: 5,
+              total_tokens: 15,
+              input_tokens_details: { cached_tokens: 3 },
+              output_tokens_details: { reasoning_tokens: 1 },
+            },
+          },
+        },
       },
       {
         type: "step-finish",
