@@ -277,6 +277,17 @@ export function toLLMEvents(
     case "raw":
       return Effect.sync(() => {
         state.copilotTotalNanoAiu = copilotTotalNanoAiu(event.rawValue) ?? state.copilotTotalNanoAiu
+        if (event.rawValue && typeof event.rawValue === "object") {
+          const raw = event.rawValue as Record<string, unknown>
+          const response = raw.response
+          if (raw.type === "response.created" && response && typeof response === "object") {
+            const id = (response as Record<string, unknown>).id
+            if (typeof id === "string" && /^resp_[a-zA-Z0-9._:-]{1,250}$/.test(id)) {
+              // Never carry response prose, reasoning, headers, or credentials across this seam.
+              return [LLMEvent.stepStart({ index: state.step, providerMetadata: { openai: { responseId: id } } })]
+            }
+          }
+        }
         return []
       })
 

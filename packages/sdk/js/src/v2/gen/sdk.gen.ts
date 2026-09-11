@@ -4162,6 +4162,7 @@ export class Session2 extends HeyApiClient {
       model?: string
       arguments?: string
       command?: string
+      system?: string
       variant?: string
       parts?: Array<{
         id?: string
@@ -4187,6 +4188,7 @@ export class Session2 extends HeyApiClient {
             { in: "body", key: "model" },
             { in: "body", key: "arguments" },
             { in: "body", key: "command" },
+            { in: "body", key: "system" },
             { in: "body", key: "variant" },
             { in: "body", key: "parts" },
           ],

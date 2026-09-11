@@ -71,6 +71,7 @@ interface ProcessorContext extends Input {
   blocked: boolean
   needsCompaction: boolean
   currentText: SessionV1.TextPart | undefined
+  stepStart: { index: number; part: SessionV1.StepStartPart } | undefined
   lastStepFinish: SessionV1.StepFinishPart | undefined
   reasoningMap: Record<string, SessionV1.ReasoningPart>
 }
@@ -111,6 +112,7 @@ const layer = Layer.effect(
         blocked: false,
         needsCompaction: false,
         currentText: undefined,
+        stepStart: undefined,
         lastStepFinish: undefined,
         reasoningMap: {},
       }
@@ -423,18 +425,26 @@ const layer = Layer.effect(
           case "provider-error":
             throw new Error(value.message)
 
-          case "step-start":
+          case "step-start": {
             if (!ctx.snapshot) ctx.snapshot = yield* snapshot.track()
-            yield* session.updatePart({
-              id: PartID.ascending(),
+            // Initial admission and response.created describe one step. Enrich its existing
+            // part instead of appending another step or pretending terminal usage is known.
+            const prior =
+              value.providerMetadata && ctx.stepStart?.index === value.index ? ctx.stepStart.part : undefined
+            const part = yield* session.updatePart({
+              id: prior?.id ?? PartID.ascending(),
               messageID: ctx.assistantMessage.id,
               sessionID: ctx.sessionID,
               snapshot: ctx.snapshot,
               type: "step-start",
+              ...(value.providerMetadata ? { metadata: { ...prior?.metadata, ...value.providerMetadata } } : {}),
             })
+            ctx.stepStart = { index: value.index, part }
             return
+          }
 
           case "step-finish": {
+            ctx.stepStart = undefined
             const completedSnapshot = yield* snapshot.track()
             yield* Effect.forEach(Object.keys(ctx.reasoningMap), finishReasoning)
             const usage = Session.getUsage({
@@ -540,10 +550,12 @@ const layer = Layer.effect(
             // so an embedding host can retain a causal-chain attestation without response content.
             if (ctx.lastStepFinish && value.providerMetadata) {
               const metadata = Object.fromEntries(
-                [...new Set([
-                  ...Object.keys(ctx.lastStepFinish.metadata ?? {}),
-                  ...Object.keys(value.providerMetadata),
-                ])].map((provider) => [
+                [
+                  ...new Set([
+                    ...Object.keys(ctx.lastStepFinish.metadata ?? {}),
+                    ...Object.keys(value.providerMetadata),
+                  ]),
+                ].map((provider) => [
                   provider,
                   {
                     ...(ctx.lastStepFinish?.metadata?.[provider] ?? {}),

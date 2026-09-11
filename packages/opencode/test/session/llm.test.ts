@@ -190,6 +190,13 @@ describe("session.llm.ai-sdk adapter", () => {
     const events = await adapt([
       { type: "start" },
       { type: "start-step", request: {}, warnings: [] },
+      {
+        type: "raw",
+        rawValue: {
+          type: "response.created",
+          response: { id: "resp_started", output: "must-not-cross", privateField: "must-not-cross" },
+        },
+      },
       { type: "text-start", id: "text-1", providerMetadata: metadata },
       { type: "text-delta", id: "text-1", text: "Hel", providerMetadata: { openai: { delta: 1 } } },
       { type: "text-delta", id: "text-1", text: "lo", providerMetadata: { openai: { delta: 2 } } },
@@ -250,6 +257,7 @@ describe("session.llm.ai-sdk adapter", () => {
 
     expect(events).toMatchObject([
       { type: "step-start", index: 0 },
+      { type: "step-start", index: 0, providerMetadata: { openai: { responseId: "resp_started" } } },
       { type: "text-start", id: "text-1", providerMetadata: metadata },
       { type: "text-delta", id: "text-1", text: "Hel", providerMetadata: { openai: { delta: 1 } } },
       { type: "text-delta", id: "text-1", text: "lo", providerMetadata: { openai: { delta: 2 } } },
@@ -303,6 +311,7 @@ describe("session.llm.ai-sdk adapter", () => {
         },
       },
     ])
+    expect(JSON.stringify(events)).not.toContain("must-not-cross")
   })
 
   test("creates stable block ids when AI SDK omits them", async () => {

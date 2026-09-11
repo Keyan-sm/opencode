@@ -550,6 +550,9 @@ export type StepStartPart = {
   messageID: string
   type: "step-start"
   snapshot?: string
+  metadata?: {
+    [key: string]: unknown
+  }
 }
 
 export type StepFinishPart = {
@@ -559,6 +562,9 @@ export type StepFinishPart = {
   type: "step-finish"
   reason: string
   snapshot?: string
+  metadata?: {
+    [key: string]: unknown
+  }
   cost: number
   tokens: {
     total?: number
@@ -7246,6 +7252,7 @@ export type GlobalHealthResponses = {
   200: {
     healthy: true
     version: string
+    casecanvasFork: "cassius-v1"
   }
 }
 
@@ -10194,6 +10201,7 @@ export type SessionCommandData = {
     model?: string
     arguments: string
     command: string
+    system?: string
     variant?: string
     parts?: Array<{
       id?: string

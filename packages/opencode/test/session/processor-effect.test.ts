@@ -215,6 +215,7 @@ const fragmentFailureLLM = Layer.succeed(
     stream: () =>
       Stream.make(
         LLMEvent.stepStart({ index: 0 }),
+        LLMEvent.stepStart({ index: 0, providerMetadata: { openai: { responseId: "resp_interrupted" } } }),
         LLMEvent.reasoningStart({ id: "reasoning-1" }),
         LLMEvent.reasoningDelta({ id: "reasoning-1", text: "thinking" }),
         LLMEvent.textStart({ id: "text-1" }),
@@ -1176,6 +1177,10 @@ itFragmentFailure.live("session.processor effect tests retain partial legacy par
         yield* off
 
         const parts = yield* MessageV2.parts(msg.id)
+        const starts = parts.filter((part) => part.type === "step-start")
+        expect(starts).toHaveLength(1)
+        expect(starts[0]?.metadata).toEqual({ openai: { responseId: "resp_interrupted" } })
+        expect(parts.some((part) => part.type === "step-finish")).toBe(false)
         expect(parts).toEqual(
           expect.arrayContaining([
             expect.objectContaining({ type: "text", text: "partial" }),
@@ -1221,9 +1226,7 @@ itFinishMetadata.live("session.processor retains provider metadata emitted after
         ).toBe("continue")
 
         const parts = yield* MessageV2.parts(msg.id)
-        const finish = parts.find(
-          (part): part is SessionV1.StepFinishPart => part.type === "step-finish",
-        )
+        const finish = parts.find((part): part is SessionV1.StepFinishPart => part.type === "step-finish")
         expect(finish?.metadata).toEqual({
           openai: { responseId: "resp_attested", serviceTier: "default" },
         })

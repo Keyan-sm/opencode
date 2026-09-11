@@ -234,6 +234,8 @@ export const StepStartPart = Schema.Struct({
   ...partBase,
   type: Schema.Literal("step-start"),
   snapshot: Schema.optional(Schema.String),
+  // Keep early provider response identifiers durable if the stream ends before usage arrives.
+  metadata: optional(Schema.Record(Schema.String, Schema.Unknown)),
 }).annotate({ identifier: "StepStartPart" })
 export type StepStartPart = Types.DeepMutable<Schema.Schema.Type<typeof StepStartPart>>
 

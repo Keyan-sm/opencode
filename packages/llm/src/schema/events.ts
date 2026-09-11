@@ -78,6 +78,7 @@ export type UsageInput = Usage | ConstructorParameters<typeof Usage>[0]
 export const StepStart = Schema.Struct({
   type: Schema.tag("step-start"),
   index: Schema.Number,
+  providerMetadata: Schema.optional(ProviderMetadata),
 }).annotate({ identifier: "LLM.Event.StepStart" })
 export type StepStart = Schema.Schema.Type<typeof StepStart>
 
