@@ -14,7 +14,7 @@ afterEach(() => {
 })
 
 describe("plugin.casecanvas", () => {
-  test("installs the Cassius system policy and denies non-CaseCanvas tools", async () => {
+  test("installs the Cassius policy and enables bounded native agent tools", async () => {
     const active = createCaseCanvasHooks({
       endpoint: new URL("https://casecanvas.test/internal/tools"),
       token: "service-secret",
@@ -33,17 +33,20 @@ describe("plugin.casecanvas", () => {
     ).resolves.toBeUndefined()
     await expect(
       active["tool.execute.before"]?.(
-        { tool: "shell", sessionID: "ses_casecanvas", callID: "call_shell" },
+        { tool: "bash", sessionID: "ses_casecanvas", callID: "call_shell" },
         { args: { command: "whoami" } },
       ),
-    ).rejects.toThrow("CaseCanvas denied unavailable tool: shell")
+    ).resolves.toBeUndefined()
 
     const allowed: { status: "ask" | "allow" | "deny" } = { status: "ask" }
     await active["permission.ask"]?.({ type: "casecanvas_search_documents" } as never, allowed)
     expect(allowed.status).toBe("allow")
     const denied: { status: "ask" | "allow" | "deny" } = { status: "ask" }
     await active["permission.ask"]?.({ type: "webfetch" } as never, denied)
-    expect(denied.status).toBe("deny")
+    expect(denied.status).toBe("allow")
+    const external: { status: "ask" | "allow" | "deny" } = { status: "ask" }
+    await active["permission.ask"]?.({ type: "external_directory" } as never, external)
+    expect(external.status).toBe("deny")
   })
 
   test("registers tools only when the bridge is configured", async () => {
@@ -55,9 +58,12 @@ describe("plugin.casecanvas", () => {
     })({} as never)
     const registered = Object.keys(configured.tool ?? {}).sort()
     expect(registered).toEqual([
+      "casecanvas_create_artifact",
       "casecanvas_ingestion_status",
+      "casecanvas_list_library",
       "casecanvas_propose_case_party",
       "casecanvas_propose_schedule_update",
+      "casecanvas_read_artifact",
       "casecanvas_read_document",
       "casecanvas_search_documents",
     ])
@@ -76,7 +82,7 @@ describe("plugin.casecanvas", () => {
     expect(config.agent.cassius).toMatchObject({
       description: "CaseCanvas forensic investigation agent",
       mode: "primary",
-      maxSteps: 12,
+      maxSteps: 64,
     })
   })
 
@@ -138,6 +144,49 @@ describe("plugin.casecanvas", () => {
         CASECANVAS_TOOL_TIMEOUT_MS: "12",
       }),
     ).toThrow("CASECANVAS_TOOL_TIMEOUT_MS must be an integer from 100 through 120000")
+  })
+
+  test("forwards a generated spreadsheet and preserves its artifact metadata", async () => {
+    const server = serve(async () =>
+      Response.json({
+        modelContent: "Created account-summary.xlsx.",
+        data: { artifact: { id: "artifact-1" } },
+        sources: [],
+        artifact: {
+          id: "artifact-1",
+          caseId: "case-a",
+          conversationId: "conversation-a",
+          fileName: "account-summary.xlsx",
+          format: "xlsx",
+          mimeType: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+          byteSize: 4096,
+          createdAt: "2026-09-02T12:00:00.000Z",
+        },
+        security: { classification: "generated_artifact", promptInjectionStatus: "not_applicable" },
+      }),
+    )
+    const result = await tool(hooks(server, 1_000), "casecanvas_create_artifact").execute(
+      {
+        fileName: "account-summary",
+        format: "xlsx",
+        sheets: [
+          {
+            name: "Accounts",
+            rows: [
+              ["Account", "Balance"],
+              ["General", 36352.6],
+            ],
+          },
+        ],
+      },
+      context(),
+    )
+
+    expect(metadata(result).artifact).toMatchObject({
+      id: "artifact-1",
+      fileName: "account-summary.xlsx",
+      format: "xlsx",
+    })
   })
 
   test("forwards a validated search with service authentication and preserves evidence metadata", async () => {
