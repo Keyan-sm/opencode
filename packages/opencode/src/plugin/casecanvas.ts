@@ -115,6 +115,31 @@ const proposeScheduleUpdateArguments = z
   .strict()
 
 const artifactCell = z.union([z.string().max(100_000), z.number(), z.boolean(), z.null()])
+// One case document a created file rests on. CaseCanvas checks each against the case (the quote
+// must occur in that document's text) and writes the kept ones into the file as numbered [n].
+const artifactSource = z
+  .object({
+    documentId: z.string().trim().min(1).max(100),
+    versionId: z.string().trim().min(1).max(100).optional(),
+    locator: z
+      .object({
+        page: z.number().int().min(1).optional(),
+        sheet: z.string().trim().max(100).optional(),
+        rows: z.string().trim().max(40).optional(),
+        part: z.string().trim().max(80).optional(),
+      })
+      .strict()
+      .optional(),
+    quote: z.string().trim().min(1).max(2_000),
+    supports: z
+      .object({
+        sheet: z.string().trim().max(31).optional(),
+        rows: z.array(z.number().int().min(1).max(100_000)).max(10_000),
+      })
+      .strict()
+      .optional(),
+  })
+  .strict()
 const createArtifactArguments = z
   .object({
     fileName: z.string().trim().min(1).max(180),
@@ -132,6 +157,7 @@ const createArtifactArguments = z
       .min(1)
       .max(10)
       .optional(),
+    sources: z.array(artifactSource).max(100).optional(),
   })
   .strict()
   .superRefine((value, context) => {
@@ -293,7 +319,7 @@ export function createCaseCanvasHooks(config: Configuration): Hooks {
       },
       [CREATE_ARTIFACT]: {
         description:
-          "Create a user-visible CaseCanvas deliverable. Use sheets for XLSX or CSV files and content for Markdown, JSON, or text files. The generated file appears in the Cassius panel and can be opened by the user.",
+          "Create a user-visible CaseCanvas deliverable. Use sheets for XLSX or CSV files and content for Markdown, JSON, or text files. The file becomes a case document, private to the user until they share it. List in sources every case document the file rests on: its documentId, where in it (locator: page, or sheet and rows), the exact passage quoted from its text, and, for sheets, the rows of this file it supports (header is row 1). Refer to a source in Markdown or text content as [n], its position in sources. Sources whose quote is not in the document's text, and files Cassius made, are left out.",
         args: createArtifactArguments.shape,
         execute: (args, context) =>
           invoke(CREATE_ARTIFACT, createArtifactArguments, args, context, config, repetitions, budgets),
